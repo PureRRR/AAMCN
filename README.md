@@ -9,7 +9,7 @@ Install Python3.6, Tensorflow2, numpy.
 In ./convert_data
 
 # Pretrain
-Pre-trained model is in ./weights/
+Pre-trained model is in ./save_weights/
 
 # Train the model
 USE THIS:
