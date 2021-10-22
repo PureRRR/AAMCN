@@ -482,12 +482,7 @@ def train(dataset, epochs):
 
                 pbar.update(1)
                 save_model(model_path)
-
-                if sco>=0.7:
-                    acctmp = test(test_dataset)
-                    if acctmp>now_highest:
-                        save_model('./best_weights/now_highest/')
-                        now_highest = acctmp
+                
 
         dataset = tf.data.Dataset.shuffle(dataset, len(dataset))
 
@@ -521,7 +516,7 @@ generator_encoders, discriminators, attention_module, cluster_module = make_mode
 # test(test_dataset)
 # print('Compared model:')
 # testSpec(test_dataset, num_classes, num_modalities)
-for i_epo in range(50):
+for i_epo in range(5):
     train(dataset, EPOCH)
     # acctmp = test(test_dataset)
     # if acctmp>now_highest:
