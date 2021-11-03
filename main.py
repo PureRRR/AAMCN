@@ -19,10 +19,10 @@ from load_data import load_data
 from metrics import compute_and_print_scores
 
 print(tf.__version__)
-os.environ['CUDA_VISIBLE_DEVICES']='0'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 
-def generator_encoder(input_dimension, output_dimension = 128):
+def generator_encoder(input_dimension, output_dimension=128):
     model = keras.Sequential()
     model.add(layers.Dense(128, input_shape=(input_dimension,)))
     model.add(layers.BatchNormalization())
@@ -42,7 +42,7 @@ def generator_encoder(input_dimension, output_dimension = 128):
     return model
 
 
-def discriminator_model(input_dim = 128):
+def discriminator_model(input_dim=128):
     model = keras.Sequential()
 
     model.add(layers.Dense(64, input_shape=(input_dim,)))
@@ -59,15 +59,14 @@ def discriminator_model(input_dim = 128):
     return model
 
 
-def AttentionModule(out_weight_dimension, input_dimension = 128):
+def AttentionModule(out_weight_dimension, input_dimension=128):
     """
     the input of this module is the concatenated features h from{h1,h2...hn}
     and the output is a V dimensional weight vector w
-
     """
     model = keras.Sequential()
 
-    model.add(layers.Dense(64, input_shape=(input_dimension * out_weight_dimension, )))
+    model.add(layers.Dense(64, input_shape=(input_dimension * out_weight_dimension,)))
     model.add(layers.BatchNormalization())
     model.add(layers.LeakyReLU())
 
@@ -79,7 +78,7 @@ def AttentionModule(out_weight_dimension, input_dimension = 128):
     model.add(layers.BatchNormalization())
 
     model.add(Activation('sigmoid'))
-    #没有用τ
+    # 没有用τ
     model.add(layers.Softmax())
 
     return model
@@ -89,7 +88,7 @@ def Conv1():
     pass
 
 
-def ClusteringModule(num_types, input_dimension = 128):
+def ClusteringModule(num_types, input_dimension=128):
     fused_fea = Input((input_dimension,), name='input')
     dense1_out = layers.Dense(64)(fused_fea)
     relu_out1 = layers.ReLU()(dense1_out)
@@ -115,24 +114,24 @@ def ClusteringModule(num_types, input_dimension = 128):
     return model
 
 
-cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits = True)
+cross_entropy = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
 
 def discriminator_loss(real_latentRepre_out, fake_latentRepre_out, lambda_dis=1):
-    real_loss = cross_entropy(tf.ones_like(real_latentRepre_out),real_latentRepre_out)
-    fake_loss = cross_entropy(tf.zeros_like(fake_latentRepre_out),fake_latentRepre_out)
+    real_loss = cross_entropy(tf.ones_like(real_latentRepre_out), real_latentRepre_out)
+    fake_loss = cross_entropy(tf.zeros_like(fake_latentRepre_out), fake_latentRepre_out)
     return lambda_dis * (real_loss + fake_loss)
 
 
 def generator_loss(fake_latentRepre_out, lambda_gen=1):
-    return lambda_gen * cross_entropy(tf.ones_like(fake_latentRepre_out),fake_latentRepre_out)
+    return lambda_gen * cross_entropy(tf.ones_like(fake_latentRepre_out), fake_latentRepre_out)
 
 
-def vector_square_distance(vec1, vec2, mode = 1):
+def vector_square_distance(vec1, vec2, mode=1):
     """没用"""
     dis = 0.0
     for i in range(0, vec1.shape[0]):
-        dis = dis + (vec1[i] - vec2[i])**2
+        dis = dis + (vec1[i] - vec2[i]) ** 2
     if mode == 1:
         return dis
     elif mode == 2:
@@ -154,10 +153,10 @@ def Gaussian_Kernel_Matrix(latent_representation):
     """
     input one view's latent representation matrix to compute ???, and output the K matrix
     return numpy array Gaussian_Kernel_Matrix
-
     """
     innerProduct = tf.matmul(latent_representation, tf.transpose(latent_representation))
-    diag = tf.matmul(tf.reshape(tf.linalg.diag_part(innerProduct), (-1, 1)), tf.ones([1, latent_representation.shape[0]]))
+    diag = tf.matmul(tf.reshape(tf.linalg.diag_part(innerProduct), (-1, 1)),
+                     tf.ones([1, latent_representation.shape[0]]))
     dist = diag - 2 * innerProduct + tf.transpose(diag)
     sigma = 0.15 * tf.reduce_mean(dist) * (latent_representation.shape[0] / (latent_representation.shape[0] - 1))
     K = tf.exp(-dist / sigma)
@@ -172,8 +171,8 @@ def attention_loss(Kf, Kc, lambda_att):
 
 def xTKx(vector_column1, Kf, vector_column2):
     """没用"""
-    vector_column1 = tf.reshape(vector_column1, (1,-1))
-    vector_column2 = tf.reshape(vector_column2, (1,-1))
+    vector_column1 = tf.reshape(vector_column1, (1, -1))
+    vector_column2 = tf.reshape(vector_column2, (1, -1))
     dot_pre = tf.matmul(vector_column1, Kf)
     dot = tf.matmul(dot_pre, tf.transpose(vector_column2))
     dot = tf.reshape(dot, [])
@@ -191,7 +190,7 @@ def strict_upper_triangle_sum(tmp):
 def cs_divergence(clustering_result, Kf):
     H = tf.matmul(tf.matmul(tf.transpose(clustering_result), Kf), clustering_result)
     diagH = tf.reshape(tf.linalg.diag_part(H), (-1, 1))
-    tmp = (H + 1e-9)/(tf.sqrt(tf.matmul(diagH, tf.transpose(diagH))) + 1e-9)
+    tmp = (H + 1e-9) / (tf.sqrt(tf.matmul(diagH, tf.transpose(diagH))) + 1e-9)
     val = strict_upper_triangle_sum(tmp)
     return val
 
@@ -214,13 +213,13 @@ def Pij(clustering_result):
 def clustering_loss(clustering_result, Kf, lambda_clu=1):
     c_m_simplex_M = cluster_minus_simplex(clustering_result)
     return lambda_clu * (strict_upper_triangle_sum(tf.matmul(tf.transpose(clustering_result), clustering_result)) + \
-          cs_divergence(clustering_result, Kf) + cs_divergence(c_m_simplex_M, Kf))
+                         cs_divergence(clustering_result, Kf) + cs_divergence(c_m_simplex_M, Kf))
     # KLD = 0.0
     # p = Pij(clustering_result)
     # for i in range(clustering_result.shape[0]):
     #     for j in range(clustering_result.shape[1]):
     #         KLD += p[i][j] * tf.math.log(p[i][j] / clustering_result[i][j])
-    #return lambda_clu * (KLD)
+    # return lambda_clu * (KLD)
 
 
 def list_based_matrix_scale_up(matrix, weight):
@@ -232,21 +231,20 @@ def list_based_matrix_scale_up(matrix, weight):
 
 
 def train_step(dataset_batch):
-
     """will not update the i_th discriminator"""
     for i in range(0, num_modalities):
         for i_repeat in range(1):
-            with tf.GradientTape(persistent=True) as generator1_tape, tf.GradientTape() as discriminator1_tape\
-                    , tf.GradientTape(persistent=True) as generator2_tape, tf.GradientTape() as discriminator2_tape\
-                    , tf.GradientTape(persistent=True) as generator3_tape, tf.GradientTape() as discriminator3_tape\
-                    , tf.GradientTape(persistent=True) as generator4_tape, tf.GradientTape() as discriminator4_tape\
-                    , tf.GradientTape(persistent=True) as generator5_tape, tf.GradientTape() as discriminator5_tape\
+            with tf.GradientTape(persistent=True) as generator1_tape, tf.GradientTape() as discriminator1_tape \
+                    , tf.GradientTape(persistent=True) as generator2_tape, tf.GradientTape() as discriminator2_tape \
+                    , tf.GradientTape(persistent=True) as generator3_tape, tf.GradientTape() as discriminator3_tape \
+                    , tf.GradientTape(persistent=True) as generator4_tape, tf.GradientTape() as discriminator4_tape \
+                    , tf.GradientTape(persistent=True) as generator5_tape, tf.GradientTape() as discriminator5_tape \
                     , tf.GradientTape(persistent=True) as attention_tape, tf.GradientTape() as cluster_module_tape:
 
                 # t1 = time.perf_counter()
                 input_feature = []
                 for j in range(num_modalities):
-                    input_feature.append(dataset_batch[str(j+1)])
+                    input_feature.append(dataset_batch[str(j + 1)])
 
                 """generator_out are latent representations"""
                 generator_out = []
@@ -260,15 +258,14 @@ def train_step(dataset_batch):
 
                 """output of discriminator"""
                 gen_loss = []
-                discrimi_loss = []
+                discrimi_loss = tf.constant(0.0)
                 for j in range(0, num_modalities):
                     gen_loss.append(tf.constant(0.0))
-                    discrimi_loss.append(tf.constant(0.0))
                     if j != i:
                         """real out is the output of reference latent representation, while fake ones are others"""
                         real_out = discriminators[i](generator_out[i], training=True)
                         fake_out = discriminators[i](generator_out[j], training=True)
-                        discrimi_loss[j] = discriminator_loss(real_out, fake_out,LAMB_DIS)
+                        discrimi_loss += discriminator_loss(real_out, fake_out, LAMB_DIS)
                         gen_loss[j] = generator_loss(fake_out, LAMB_GEN)
 
                 attention_weight_out = attention_module(concated_out)
@@ -281,7 +278,7 @@ def train_step(dataset_batch):
                 """get the fused representation and gaussian matrix with the mean weight and generator out"""
                 for i_th_weight in range(num_modalities):
                     weight = mean_weight[i_th_weight]
-                    if i_th_weight==0:
+                    if i_th_weight == 0:
                         fused_representation = generator_out[i_th_weight] * weight
                         Kc = gaussian_matrix[i_th_weight] * weight
                     else:
@@ -302,10 +299,11 @@ def train_step(dataset_batch):
             更新梯度
             """
             gen_tapes = [generator1_tape, generator2_tape, generator3_tape, generator4_tape, generator5_tape]
-            disc_tapes = [discriminator1_tape, discriminator2_tape, discriminator3_tape, discriminator4_tape, discriminator5_tape]
-            
-            discgrad_disc = disc_tapes[i].gradient(discrimi_loss[i], discriminators[i].trainable_variables)
-            discriminator_optimizer.apply_gradients(zip(discgrad_disc, discriminators[j].trainable_variables))
+            disc_tapes = [discriminator1_tape, discriminator2_tape, discriminator3_tape, discriminator4_tape,
+                          discriminator5_tape]
+
+            discgrad_disc = disc_tapes[i].gradient(discrimi_loss, discriminators[i].trainable_variables)
+            discriminator_optimizer.apply_gradients(zip(discgrad_disc, discriminators[i].trainable_variables))
 
             for j in range(num_modalities):
                 if j != i:
@@ -332,9 +330,9 @@ def train_step(dataset_batch):
     gen_all = 0.0
     disc_all = 0.0
     for j in range(num_modalities):
-        whole_loss = whole_loss + gen_loss[j] + discrimi_loss[j]
+        whole_loss = whole_loss + gen_loss[j] + discrimi_loss
         gen_all = gen_all + gen_loss[j]
-        disc_all = disc_all + discrimi_loss[j]
+        disc_all = disc_all + discrimi_loss
     whole_loss = whole_loss + att_loss
     whole_loss = whole_loss + cluster_loss
     return whole_loss, gen_all, disc_all, att_loss, cluster_loss, clustering_result.numpy()
@@ -406,7 +404,7 @@ def tsne_visual(data, labels, name):
             tmp = color[i] + shape[j]
             formation.append(tmp)
     for i in range(result.shape[0]):
-        plt.plot(result[i, 0], result[i, 1], formation[labels[i]-1])
+        plt.plot(result[i, 0], result[i, 1], formation[labels[i] - 1])
     plt.xticks([])
     plt.yticks([])
     plt.title(name)
@@ -470,7 +468,7 @@ def train(dataset, epochs):
         with tqdm(total=len(dataset), desc=f'Epoch {epoch + 1}/{epochs}', unit='it', colour='white') as pbar:
             for dataset_batch in dataset:
                 whole_loss, gen_all, disc_all, att_loss, cluster_loss, cluster_result = train_step(dataset_batch)
-                pbar.set_postfix({'batch_loss' : whole_loss.numpy(), 'cluster_loss' : cluster_loss.numpy()})
+                pbar.set_postfix({'batch_loss': whole_loss.numpy(), 'cluster_loss': cluster_loss.numpy()})
                 out = open("out.txt", "a+")
                 out.write('batch_loss : ' + str(whole_loss.numpy()) + '  gen_all : ' + str(gen_all.numpy()) +
                           '  disc_all : ' + str(disc_all.numpy()) + '  att_loss : ' + str(att_loss.numpy()) +
@@ -481,7 +479,6 @@ def train(dataset, epochs):
 
                 pbar.update(1)
                 save_model(model_path)
-                
 
         dataset = tf.data.Dataset.shuffle(dataset, len(dataset))
 
@@ -511,14 +508,10 @@ LAMB_CLU = 1.5
 model_path = './save_weights/'
 generator_encoders, discriminators, attention_module, cluster_module = make_model(model_path, num_modalities)
 
-# print('My model:')
-# test(test_dataset)
+
 # print('Compared model:')
 # testSpec(test_dataset, num_classes, num_modalities)
 for i_epo in range(5):
     train(dataset, EPOCH)
-    # acctmp = test(test_dataset)
-    # if acctmp>now_highest:
-    #     save_model('./best_weights/now_highest/')
-    #     now_highest = acctmp
-#test(test_dataset)
+# print('My model:')
+# test(test_dataset)
