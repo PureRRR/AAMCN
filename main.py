@@ -264,11 +264,10 @@ def train_step(dataset_batch):
                 for j in range(0, num_modalities):
                     gen_loss.append(tf.constant(0.0))
                     discrimi_loss.append(tf.constant(0.0))
-                    """参考特征的discriminator和generator不更新？？？？？"""
                     if j != i:
                         """real out is the output of reference latent representation, while fake ones are others"""
-                        real_out = discriminators[j](generator_out[i], training=True)
-                        fake_out = discriminators[j](generator_out[j], training=True)
+                        real_out = discriminators[i](generator_out[i], training=True)
+                        fake_out = discriminators[i](generator_out[j], training=True)
                         discrimi_loss[j] = discriminator_loss(real_out, fake_out,LAMB_DIS)
                         gen_loss[j] = generator_loss(fake_out, LAMB_GEN)
 
@@ -304,14 +303,14 @@ def train_step(dataset_batch):
             """
             gen_tapes = [generator1_tape, generator2_tape, generator3_tape, generator4_tape, generator5_tape]
             disc_tapes = [discriminator1_tape, discriminator2_tape, discriminator3_tape, discriminator4_tape, discriminator5_tape]
+            
+            discgrad_disc = disc_tapes[i].gradient(discrimi_loss[i], discriminators[i].trainable_variables)
+            discriminator_optimizer.apply_gradients(zip(discgrad_disc, discriminators[j].trainable_variables))
 
             for j in range(num_modalities):
                 if j != i:
-                    """参考discriminator本轮未参与，不更新"""
                     gengrads_gen = gen_tapes[j].gradient(gen_loss[j], generator_encoders[j].trainable_variables)
-                    discgrad_disc = disc_tapes[j].gradient(discrimi_loss[j], discriminators[j].trainable_variables)
                     generator_optimizer.apply_gradients(zip(gengrads_gen, generator_encoders[j].trainable_variables))
-                    discriminator_optimizer.apply_gradients(zip(discgrad_disc, discriminators[j].trainable_variables))
                 gengrads_att = gen_tapes[j].gradient(att_loss, generator_encoders[j].trainable_variables)
                 gengrads_clus = gen_tapes[j].gradient(cluster_loss, generator_encoders[j].trainable_variables)
                 generator_optimizer.apply_gradients(zip(gengrads_att, generator_encoders[j].trainable_variables))
